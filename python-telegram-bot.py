@@ -4,12 +4,20 @@ from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# Token bot lo taruh sini, jangan sampe bocor ke si "Man"
-load_dotenv()
+# Load .env file jika ada (untuk development lokal)
+if os.path.exists('.env'):
+    load_dotenv()
+
+# Token bot dari environment variable (Railway atau lokal)
 TOKEN = os.getenv('TELEGRAM_TOKEN')
+
+# Validasi token
+if not TOKEN:
+    raise ValueError("❌ TELEGRAM_TOKEN tidak ditemukan! Set di Railway Variables atau .env file")
 
 # Setup logging biar kita tau kalau ada yang fucked up
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "🤖 *Selamat Datang di Bot!*\n\nPilih menu di bawah:"
@@ -108,12 +116,18 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 def main():
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(button))
-    
-    print("Bot nyala, Boss! Langsung cek Telegram lo.")
-    application.run_polling()
+    try:
+        logger.info("🚀 Memulai Bot Telegram...")
+        application = Application.builder().token(TOKEN).build()
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CallbackQueryHandler(button))
+        
+        logger.info("✅ Bot terhubung ke Telegram!")
+        print("Bot nyala, Boss! Langsung cek Telegram lo.")
+        application.run_polling()
+    except Exception as e:
+        logger.error(f"❌ Error saat menjalankan bot: {e}")
+        raise
 
 if __name__ == '__main__':
     main()
