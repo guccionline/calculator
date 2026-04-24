@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import os
 from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -36,76 +36,25 @@ def calculator_keyboard():
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     data = query.data
+    current_text = query.message.text.split('\n')[-1] # Ambil angka terakhir
     
-    # Menu utama
-    if data == "calc":
-        await query.edit_message_text(
-            text="🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: 0",
-            reply_markup=calculator_keyboard(),
-            parse_mode="Markdown"
-        )
-        return
-    
-    if data == "about":
-        about_text = "ℹ️ *Tentang Bot*\n\n🤖 Bot Kalkulator V\nBuat hitung-hitungan dengan mudah!\n\n/start - Kembali ke menu"
-        await query.edit_message_text(text=about_text, reply_markup=main_menu(), parse_mode="Markdown")
-        return
-    
-    if data == "menu":
-        await query.edit_message_text(
-            text="🤖 *Selamat Datang di Bot!*\n\nPilih menu di bawah:",
-            reply_markup=main_menu(),
-            parse_mode="Markdown"
-        )
-        return
-    
-    # Kalkulator logic
-    message_text = query.message.text
-    if "Display:" in message_text:
-        current_text = message_text.split("Display: ")[-1].strip()
-    else:
-        current_text = "0"
-    
-    if current_text == "0" and data not in [".", "="]:
+    if current_text == "Kalkulator V Siap Tempur! Pencet tombol di bawah:":
         current_text = ""
 
     if data == "=":
         try:
+            # Hati-hati pakai eval, tapi buat kalkulator simpel gini sih sikat aja
             result = str(eval(current_text))
-            display_text = f"🧮 *Kalkulator*\n━━━━━━━━━━━\n📊 Hasil: {result}"
-            await query.edit_message_text(
-                text=display_text,
-                reply_markup=calculator_keyboard(),
-                parse_mode="Markdown"
-            )
+            await query.edit_message_text(text=f"Hasil: {result}", reply_markup=main_menu_keyboard())
         except:
-            await query.edit_message_text(
-                text="🧮 *Kalkulator*\n━━━━━━━━━━━\n❌ Error! Input tidak valid.",
-                reply_markup=calculator_keyboard(),
-                parse_mode="Markdown"
-            )
+            await query.edit_message_text(text="Error, Boss! Inputnya yang bener dong.", reply_markup=main_menu_keyboard())
     elif data == "clear":
-        await query.edit_message_text(
-            text="🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: 0",
-            reply_markup=calculator_keyboard(),
-            parse_mode="Markdown"
-        )
+        await query.edit_message_text(text="Cleared. Ulang lagi:", reply_markup=main_menu_keyboard())
     elif data == "del":
-        new_text = current_text[:-1] if current_text else "0"
-        await query.edit_message_text(
-            text=f"🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: {new_text or '0'}",
-            reply_markup=calculator_keyboard(),
-            parse_mode="Markdown"
-        )
+        await query.edit_message_text(text=current_text[:-1] or "0", reply_markup=main_menu_keyboard())
     else:
-        new_text = current_text + data
-        await query.edit_message_text(
-            text=f"🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: {new_text}",
-            reply_markup=calculator_keyboard(),
-            parse_mode="Markdown"
-        )
+        await query.edit_message_text(text=current_text + data, reply_markup=main_menu_keyboard())
 
 def main():
     application = Application.builder().token(TOKEN).build()
