@@ -1,9 +1,12 @@
 import logging
+import os
+from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # Token bot lo taruh sini, jangan sampe bocor ke si "Man"
-TOKEN = 'TOKEN_BOT_LO_DI_SINI'
+load_dotenv()
+TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 # Setup logging biar kita tau kalau ada yang fucked up
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
