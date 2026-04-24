@@ -55,18 +55,12 @@ def calculator_keyboard():
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle teks dari ReplyKeyboard (angka/operator)
     text = update.message.text.strip()
-    
-    # Hapus message user (dari keyboard click)
-    await update.message.delete()
 
     # init state
     if 'display' not in context.user_data:
         context.user_data['display'] = "0"
     if 'display_msg_id' not in context.user_data:
-        # Jika belum ada, reply sekali
-        msg = await update.message.reply_text("🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: 0", reply_markup=calculator_keyboard(), parse_mode="Markdown")
-        context.user_data['display_msg_id'] = msg.message_id
-        context.user_data['display'] = "0"
+        context.user_data['display_msg_id'] = None
 
     current = context.user_data['display']
 
@@ -76,6 +70,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="🤖 *Menu Utama*", reply_markup=main_menu(), parse_mode="Markdown")
         return
 
+    # Tentukan display_value berdasarkan input
     if text == 'C':
         context.user_data['display'] = '0'
         display_value = '0'
@@ -97,7 +92,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # assume digit or operator
         allowed = set(list('0123456789.+-*/'))
-        # If user pressed e.g. '7' or '/' or '.'
         if all(ch in allowed for ch in text):
             if current == '0' and text not in ['+', '-', '*', '/', '.']:
                 new_display = text
@@ -116,24 +110,50 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     new_display = current + '.'
             else:
                 new_display = current + text
+            context.user_data['display'] = new_display
+            display_value = new_display
         else:
-            # fallback: ignore unknown input
             return
 
-        context.user_data['display'] = new_display
-        display_value = new_display
-
-    # Edit message display yang sudah ada (bukan reply baru)
-    try:
-        await context.bot.edit_message_text(
+    # Edit atau Reply message
+    msg_id = context.user_data.get('display_msg_id')
+    new_text = f"🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: {display_value}"
+    
+    if msg_id:
+        # Edit message yang sudah ada
+        try:
+            await context.bot.edit_message_text(
+                chat_id=update.effective_chat.id,
+                message_id=msg_id,
+                text=new_text,
+                reply_markup=calculator_keyboard(),
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Edit error: {e}")
+            # Jika edit gagal, buat message baru
+            msg = await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=new_text,
+                reply_markup=calculator_keyboard(),
+                parse_mode="Markdown"
+            )
+            context.user_data['display_msg_id'] = msg.message_id
+    else:
+        # Reply baru jika belum ada message_id
+        msg = await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            message_id=context.user_data['display_msg_id'],
-            text=f"🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: {display_value}",
+            text=new_text,
             reply_markup=calculator_keyboard(),
             parse_mode="Markdown"
         )
+        context.user_data['display_msg_id'] = msg.message_id
+    
+    # Hapus message keyboard user (optional, best effort)
+    try:
+        await update.message.delete()
     except Exception as e:
-        logger.error(f"Edit error: {e}")
+        logger.debug(f"Delete user message failed: {e}")
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle callback dari inline menu
