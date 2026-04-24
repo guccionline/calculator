@@ -21,8 +21,11 @@ logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Langsung tampilkan keyboard angka saat /start ditekan
-    text = "🧮 *Kalkulator*\nGunakan tombol angka di bawah untuk memasukkan ekspresi."
-    await update.message.reply_text(text, reply_markup=calculator_keyboard(), parse_mode="Markdown")
+    text = "🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: 0"
+    msg = await update.message.reply_text(text, reply_markup=calculator_keyboard(), parse_mode="Markdown")
+    # Simpan message_id untuk di-edit nanti
+    context.user_data['display_msg_id'] = msg.message_id
+    context.user_data['display'] = "0"
 
 def main_menu():
     # Tetap sediakan main menu (inline) bila diperlukan
@@ -34,7 +37,7 @@ def main_menu():
     return InlineKeyboardMarkup(keyboard)
 
 def calculator_keyboard():
-    # Reply keyboard: tombol akan muncul di atas kolom input pengguna
+    # Reply keyboard: tombol akan muncul dan fill semua space
     keyboard = [
         ["7", "8", "9", "/"],
         ["4", "5", "6", "*"],
@@ -42,14 +45,27 @@ def calculator_keyboard():
         ["0", ".", "=", "+"],
         ["C", "DEL", "Menu"]
     ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
+    return ReplyKeyboardMarkup(
+        keyboard, 
+        resize_keyboard=True, 
+        one_time_keyboard=False,
+        input_field_placeholder="Pilih tombol di atas →"
+    )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle teks dari ReplyKeyboard (angka/operator)
     text = update.message.text.strip()
+    
+    # Hapus message user (dari keyboard click)
+    await update.message.delete()
 
     # init state
     if 'display' not in context.user_data:
+        context.user_data['display'] = "0"
+    if 'display_msg_id' not in context.user_data:
+        # Jika belum ada, reply sekali
+        msg = await update.message.reply_text("🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: 0", reply_markup=calculator_keyboard(), parse_mode="Markdown")
+        context.user_data['display_msg_id'] = msg.message_id
         context.user_data['display'] = "0"
 
     current = context.user_data['display']
@@ -57,7 +73,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Commands on keyboard
     if text == 'Menu':
         # Tampilkan inline menu jika pengguna minta
-        await update.message.reply_text("🤖 *Menu Utama*", reply_markup=main_menu(), parse_mode="Markdown")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="🤖 *Menu Utama*", reply_markup=main_menu(), parse_mode="Markdown")
         return
 
     if text == 'C':
@@ -107,8 +123,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['display'] = new_display
         display_value = new_display
 
-    # respond with updated display
-    await update.message.reply_text(f"🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: {display_value}", reply_markup=calculator_keyboard(), parse_mode="Markdown")
+    # Edit message display yang sudah ada (bukan reply baru)
+    try:
+        await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            message_id=context.user_data['display_msg_id'],
+            text=f"🧮 *Kalkulator*\n━━━━━━━━━━━\nDisplay: {display_value}",
+            reply_markup=calculator_keyboard(),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Edit error: {e}")
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle callback dari inline menu
